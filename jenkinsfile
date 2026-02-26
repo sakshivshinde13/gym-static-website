@@ -2,8 +2,8 @@ pipeline {
  agent any
 
  environment {
-  SERVER_IP = '172.31.47.195'
-  SSH_CREDENTIAL = 'gym-test-key'
+  SERVER_IP = '172.31.41.135'      // Private IP of your EC2
+  SSH_CREDENTIAL = 'gym-test-key'  // Jenkins credential ID
   REPO_URL = 'https://github.com/sakshivshinde13/gym-static-website.git'
   BRANCH = 'main'
   REMOTE_USER = 'ubuntu'
@@ -18,11 +18,36 @@ pipeline {
    }
   }
 
+  stage('Prepare & Start Nginx') {
+   steps {
+    sshagent([SSH_CREDENTIAL]) {
+     sh """
+      ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${SERVER_IP} '
+        echo "Updating system packages..."
+        sudo apt update -y && sudo apt upgrade -y
+
+        echo "Installing Nginx if not installed..."
+        if ! command -v nginx >/dev/null 2>&1; then
+          sudo apt install nginx -y
+        fi
+
+        echo "Starting Nginx service..."
+        sudo systemctl enable nginx
+        sudo systemctl start nginx
+
+        echo "Preparing deployment directory..."
+        sudo mkdir -p ${REMOTE_PATH}
+        sudo chown -R ${REMOTE_USER}:${REMOTE_USER} ${REMOTE_PATH}
+      '
+     """
+    }
+   }
+  }
+
   stage('Deploy to Target Server') {
    steps {
     sshagent([SSH_CREDENTIAL]) {
      sh """
-      ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${SERVER_IP} 'mkdir -p ${REMOTE_PATH}'
       scp -o StrictHostKeyChecking=no -r * ${REMOTE_USER}@${SERVER_IP}:${REMOTE_PATH}
      """
     }
@@ -34,7 +59,8 @@ pipeline {
     sshagent([SSH_CREDENTIAL]) {
      sh """
       ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${SERVER_IP} '
-      sudo systemctl restart nginx
+        echo "Restarting Nginx..."
+        sudo systemctl restart nginx
       '
      """
     }
@@ -44,10 +70,10 @@ pipeline {
 
  post {
   success {
-   echo 'Deployment Successful'
+   echo 'Deployment Successful 🎉'
   }
   failure {
-   echo 'Deployment Failed'
+   echo 'Deployment Failed ❌'
   }
  }
 }
