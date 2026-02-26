@@ -17,12 +17,11 @@ pipeline {
     git branch: "${BRANCH}", url: "${REPO_URL}"
    }
   }
-
-  stage('Prepare Deployment Directory') {
+stage('Prepare Deployment Directory') {
    steps {
     sshagent([SSH_CREDENTIAL]) {
      sh """
-      ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${SERVER_IP} '
+      ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${SERVER_IP}'
         sudo mkdir -p ${REMOTE_PATH}
         sudo chown -R ${REMOTE_USER}:${REMOTE_USER} ${REMOTE_PATH}
       '
@@ -31,7 +30,7 @@ pipeline {
    }
   }
 
-  stage('Deploy Website') {
+ stage('Deploy Website') {
    steps {
     sshagent([SSH_CREDENTIAL]) {
      sh """
