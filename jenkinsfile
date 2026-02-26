@@ -1,49 +1,53 @@
 pipeline {
  agent any
+
  environment {
- SERVER_IP = '172.31.47.195'
- SSH_CREDENTIAL = 'test-jenkins-key'
- REPO_URL = 'https://github.com/sakshivshinde13/gym-static-website.git'
- BRANCH = 'main'
- REMOTE_USER = 'ubuntu'
- REMOTE_PATH = '/var/www/html'
+  SERVER_IP = '172.31.47.195'
+  SSH_CREDENTIAL = 'test-jenkins-key'
+  REPO_URL = 'https://github.com/sakshivshinde13/gym-static-website.git'
+  BRANCH = 'main'
+  REMOTE_USER = 'ubuntu'
+  REMOTE_PATH = '/var/www/html'
  }
+
  stages {
- stage('Clone Repository') {
- steps {
- git branch: "${BRANCH}", url: "${REPO_URL}"
+
+  stage('Clone Repository') {
+   steps {
+    git branch: "${BRANCH}", url: "${REPO_URL}"
+   }
+  }
+
+  stage('Deploy to Target Server') {
+   steps {
+    sshagent([SSH_CREDENTIAL]) {
+     sh """
+      ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${SERVER_IP} 'mkdir -p ${REMOTE_PATH}'
+      scp -o StrictHostKeyChecking=no -r * ${REMOTE_USER}@${SERVER_IP}:${REMOTE_PATH}
+     """
+    }
+   }
+  }
+
+  stage('Restart Nginx') {
+   steps {
+    sshagent([SSH_CREDENTIAL]) {
+     sh """
+      ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${SERVER_IP} '
+      sudo systemctl restart nginx
+      '
+     """
+    }
+   }
+  }
  }
- }
- stage('Deploy to Target Server') {
- steps {
- sshagent(['wrong-credential-id']) {
- sh """
- ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${SERVER_IP} 'mkdir -p ${REMOTE_PATH}'
- scp -o StrictHostKeyChecking=no -r *
-${REMOTE_USER}@${SERVER_IP}:${REMOTE_PATH}
- """
- }
- }
- }
- stage('Restart Nginx') {
- steps {
- sshagent([SSH_CREDENTIAL]) {
- sh """
- ssh -o StrictHostKeyChecking=no ${REM
-OTE_USER}@${SERVER_IP} '
- sudo systemctl restart nginxx
- '
- """
- }
- }
- }
- }
+
  post {
- success {
- echo 'Deployment Successful'
- }
- failure {
- echo 'Deployment Failed'
- }
+  success {
+   echo 'Deployment Successful'
+  }
+  failure {
+   echo 'Deployment Failed'
+  }
  }
 }
